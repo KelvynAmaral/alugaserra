@@ -1,5 +1,7 @@
 package com.alugaserra.config;
 
+import com.alugaserra.security.SecurityFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,26 +13,36 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Autowired
+    private SecurityFilter securityFilter;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                // Desabilita CSRF pois usaremos autenticação stateless (JWT)
                 .csrf(csrf -> csrf.disable())
-                // Define a política de sessão como stateless
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Configura as permissões para os endpoints
                 .authorizeHttpRequests(authorize -> authorize
-                        // Permite acesso público aos endpoints de autenticação
+                        // Rotas de Autenticação (Públicas)
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                        // Qualquer outra requisição precisa de autenticação
+
+                        // Rotas de Imóveis (Visualização Pública)
+                        .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/properties/**").permitAll()
+
+                        // Rotas de Imóveis (Ações de Locador)
+                        .requestMatchers(HttpMethod.POST, "/api/properties").hasRole("LOCADOR")
+                        .requestMatchers(HttpMethod.PUT, "/api/properties/**").hasRole("LOCADOR") // <-- Adicionado
+                        .requestMatchers(HttpMethod.DELETE, "/api/properties/**").hasRole("LOCADOR") // <-- Adicionado
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
@@ -41,8 +53,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // Usa BCrypt para criptografar as senhas
         return new BCryptPasswordEncoder();
     }
 }
-

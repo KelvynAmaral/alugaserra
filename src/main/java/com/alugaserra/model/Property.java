@@ -4,6 +4,9 @@ import com.alugaserra.enums.PropertyStatus;
 import com.alugaserra.enums.PropertyType;
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,4 +43,9 @@ public class Property {
 
     @Enumerated(EnumType.STRING)
     private PropertyStatus status = PropertyStatus.ACTIVE; // ACTIVE, PAUSED, RENTED
+
+    // --- CAMPO ADICIONADO ---
+    @CreationTimestamp // Define automaticamente a data e hora no momento da criação
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 }
