@@ -37,3 +37,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# Ignorar arquivos e pastas do IntelliJ IDEA
+.idea/
