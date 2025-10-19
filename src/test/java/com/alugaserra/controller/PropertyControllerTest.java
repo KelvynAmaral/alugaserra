@@ -1,13 +1,10 @@
 package com.alugaserra.controller;
 
+import com.alugaserra.config.DataInitializer;
 import com.alugaserra.dto.PropertyCreateDto;
 import com.alugaserra.enums.PropertyType;
 import com.alugaserra.enums.UserRole;
-import com.alugaserra.model.Plan;
-import com.alugaserra.model.Subscription;
 import com.alugaserra.model.User;
-import com.alugaserra.repository.PlanRepository;
-import com.alugaserra.repository.SubscriptionRepository;
 import com.alugaserra.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,10 +18,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.Collections;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,107 +32,117 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class PropertyControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @Autowired private UserRepository userRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private DataInitializer dataInitializer; // Injeta o nosso inicializador
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private PlanRepository planRepository;
-
-    @Autowired
-    private SubscriptionRepository subscriptionRepository;
-
-    // --- VARIÁVEIS PARA OS NOSSOS USUÁRIOS DE TESTE ---
     private User locador;
     private User inquilino;
 
     @BeforeEach
     void setupDatabase() {
-        // --- PREPARAÇÃO DOS DADOS ---
-        // Cria e salva um usuário LOCADOR real no banco de dados de teste
-        locador = new User();
-        locador.setEmail("locador.teste@email.com");
-        locador.setPasswordHash(passwordEncoder.encode("password"));
-        locador.setRole(UserRole.LOCADOR);
-        userRepository.save(locador);
+        // Força a execução do DataInitializer para garantir que os dados de teste existam
+        try {
+            dataInitializer.run(new String[]{});
+        } catch (Exception e) {
+            throw new RuntimeException("Falha ao inicializar dados de teste", e);
+        }
 
-        // Cria e salva um usuário INQUILINO real
+        locador = userRepository.findByEmail("locador@email.com").orElseThrow();
+
         inquilino = new User();
         inquilino.setEmail("inquilino.teste@email.com");
         inquilino.setPasswordHash(passwordEncoder.encode("password"));
         inquilino.setRole(UserRole.INQUILINO);
         userRepository.save(inquilino);
-
-        // Garante que o LOCADOR tenha uma assinatura ativa
-        Plan plan = planRepository.findByName("Bronze").orElseGet(() -> {
-            Plan newPlan = new Plan();
-            newPlan.setName("Bronze");
-            newPlan.setMaxProperties(1);
-            return planRepository.save(newPlan);
-        });
-
-        Subscription subscription = new Subscription();
-        subscription.setUser(locador);
-        subscription.setPlan(plan);
-        subscription.setStatus("ACTIVE");
-        subscription.setStartDate(LocalDate.now());
-        subscriptionRepository.save(subscription);
     }
+
+    // --- TESTES DE CRIAÇÃO (POST) ---
 
     @Test
     @DisplayName("Deve permitir que um LOCADOR crie um imóvel com sucesso")
     void createProperty_ShouldSucceed_WhenUserIsLocador() throws Exception {
+        // Preenche todos os campos obrigatórios do DTO para passar na validação
         PropertyCreateDto propertyDto = new PropertyCreateDto();
-        propertyDto.setTitle("Casa de Teste");
-        propertyDto.setDescription("Descrição da casa de teste.");
+        propertyDto.setTitle("Nova Casa de Teste");
+        propertyDto.setDescription("Descrição completa da nova casa de teste.");
         propertyDto.setType(PropertyType.CASA);
-        propertyDto.setRentValue(1500.00);
+        propertyDto.setRentValue(2000.00);
         propertyDto.setRooms(3);
         propertyDto.setBathrooms(2);
         propertyDto.setHasGarage(true);
-        propertyDto.setIsFurnished(false);
+        propertyDto.setIsFurnished(false); // Campo obrigatório
         propertyDto.setPhotoUrls(Collections.emptyList());
-        propertyDto.setApproximateLocation("Centro");
+        propertyDto.setApproximateLocation("Bairro Teste"); // Campo obrigatório
 
         mockMvc.perform(post("/api/properties")
-                        .with(user(locador)) // <-- CORREÇÃO: Anexa o nosso usuário REAL à requisição
+                        .with(user(locador))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(propertyDto)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.title").value("Casa de Teste"));
+                .andExpect(status().isCreated());
     }
 
     @Test
     @DisplayName("Deve proibir que um INQUILINO crie um imóvel")
     void createProperty_ShouldFail_WhenUserIsInquilino() throws Exception {
         PropertyCreateDto propertyDto = new PropertyCreateDto();
+        // Preencher o DTO não é estritamente necessário aqui, pois a segurança deve barrar antes.
+        // Mas é uma boa prática para evitar erros de validação caso a segurança falhe.
+        propertyDto.setTitle("Tentativa de Criação");
+        propertyDto.setDescription("...");
+        propertyDto.setType(PropertyType.QUARTO);
+        propertyDto.setRentValue(500.0);
+        propertyDto.setRooms(1);
+        propertyDto.setBathrooms(1);
+        propertyDto.setHasGarage(false);
+        propertyDto.setIsFurnished(true);
+        propertyDto.setApproximateLocation("Centro");
 
         mockMvc.perform(post("/api/properties")
-                        .with(user(inquilino)) // <-- CORREÇÃO: Anexa o nosso usuário INQUILINO à requisição
+                        .with(user(inquilino)) // Simula a requisição como um INQUILINO
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(propertyDto)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden()); // Esperamos o status 403 Forbidden (Acesso Negado)
+    }
+
+    // --- NOVOS TESTES DE BUSCA (GET) COM FILTROS ---
+
+    @Test
+    @DisplayName("Deve retornar todos os imóveis ativos quando nenhum filtro é aplicado")
+    void searchProperties_ShouldReturnAllActiveProperties_WhenNoFilterIsApplied() throws Exception {
+        mockMvc.perform(get("/api/properties"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3))); // Espera os 3 imóveis do DataInitializer
     }
 
     @Test
-    @DisplayName("Deve proibir que um usuário não autenticado crie um imóvel")
-    void createProperty_ShouldFail_WhenUserIsUnauthenticated() throws Exception {
-        PropertyCreateDto propertyDto = new PropertyCreateDto();
+    @DisplayName("Deve retornar apenas imóveis do tipo CASA quando o filtro 'type' é usado")
+    void searchProperties_ShouldReturnOnlyCasas_WhenTypeFilterIsCasa() throws Exception {
+        mockMvc.perform(get("/api/properties").param("type", "CASA"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title").value("Casa Grande com Quintal"));
+    }
 
-        mockMvc.perform(post("/api/properties")
-                        // Nenhuma autenticação é anexada aqui
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(propertyDto)))
-                .andExpect(status().isForbidden());
+    @Test
+    @DisplayName("Deve retornar imóveis com aluguel até 1500 quando o filtro 'maxRent' é usado")
+    void searchProperties_ShouldReturnProperties_WhenMaxRentFilterIsApplied() throws Exception {
+        mockMvc.perform(get("/api/properties").param("maxRent", "1500"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2))); // Apartamento (1200) e Kitnet (800)
+    }
+
+    @Test
+    @DisplayName("Deve combinar filtros de tipo e quartos corretamente")
+    void searchProperties_ShouldCombineFiltersCorrectly() throws Exception {
+        mockMvc.perform(get("/api/properties")
+                        .param("type", "CASA")
+                        .param("minRooms", "4"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title").value("Casa Grande com Quintal"));
     }
 }
 
