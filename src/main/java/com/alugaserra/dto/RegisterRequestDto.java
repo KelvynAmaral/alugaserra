@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import org.hibernate.validator.constraints.br.CPF; // <-- 1. IMPORTAR A ANOTAÇÃO CORRETA
 
 public record RegisterRequestDto(
         @NotBlank(message = "O nome não pode estar em branco")
@@ -18,15 +19,15 @@ public record RegisterRequestDto(
         @Size(min = 6, message = "A senha deve ter pelo menos 6 caracteres")
         String password,
 
-        // --- CAMPOS ADICIONADOS ---
         @NotBlank(message = "O CPF não pode estar em branco")
+        @CPF(message = "CPF inválido") // <-- 2. USAR A ANOTAÇÃO NATIVA
         String cpf,
 
-        @NotBlank(message = "O telefone не pode estar em branco")
+        @NotBlank(message = "O telefone não pode estar em branco")
         String phone,
-        // --- FIM DA ADIÇÃO ---
 
         @NotNull(message = "O papel do usuário é obrigatório")
         UserRole role
 ) {
 }
+
