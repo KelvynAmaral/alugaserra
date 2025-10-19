@@ -28,6 +28,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
+                        // --- REGRAS DO SWAGGER (PÚBLICAS) ---
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+
                         // Rotas de Autenticação (Públicas)
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
@@ -38,8 +43,10 @@ public class SecurityConfig {
 
                         // Rotas de Imóveis (Ações de Locador)
                         .requestMatchers(HttpMethod.POST, "/api/properties").hasRole("LOCADOR")
-                        .requestMatchers(HttpMethod.PUT, "/api/properties/**").hasRole("LOCADOR") // <-- Adicionado
-                        .requestMatchers(HttpMethod.DELETE, "/api/properties/**").hasRole("LOCADOR") // <-- Adicionado
+                        .requestMatchers(HttpMethod.PUT, "/api/properties/**").hasRole("LOCADOR")
+                        .requestMatchers(HttpMethod.DELETE, "/api/properties/**").hasRole("LOCADOR")
+
+                        // Todas as outras requisições devem ser autenticadas
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
