@@ -40,3 +40,5 @@ build/
 
 # Ignorar arquivos e pastas do IntelliJ IDEA
 .idea/
+
+src/main/resources/application.properties
