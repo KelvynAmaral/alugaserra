@@ -5,13 +5,16 @@ import com.alugaserra.dto.PropertyCreateDto;
 import com.alugaserra.dto.PropertyResponseDto;
 import com.alugaserra.dto.PropertyUpdateDto;
 import com.alugaserra.enums.PropertyStatus;
+import com.alugaserra.enums.PropertyType; // <-- Importar
 import com.alugaserra.model.Property;
 import com.alugaserra.model.Subscription;
 import com.alugaserra.model.User;
 import com.alugaserra.repository.PropertyRepository;
 import com.alugaserra.repository.SubscriptionRepository;
+import com.alugaserra.repository.specification.PropertySpecification; // <-- Importar
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification; // <-- Importar
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -20,27 +23,48 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Contém a lógica de negócio para operações relacionadas a imóveis.
- */
 @Service
 public class PropertyService {
 
     @Autowired
     private PropertyRepository propertyRepository;
 
-    // 1. INJEÇÃO DA DEPENDÊNCIA NECESSÁRIA
     @Autowired
     private SubscriptionRepository subscriptionRepository;
 
-    // --- Métodos de Leitura (Públicos) ---
+    // --- MÉTODOS DE BUSCA ATUALIZADOS ---
 
+    // Este método agora é um atalho para a busca com filtros, sem nenhum filtro aplicado.
     public List<PropertyResponseDto> findAllActiveProperties() {
-        return propertyRepository.findByStatus(PropertyStatus.ACTIVE)
+        return searchProperties(null, null, null, null);
+    }
+
+    // **** NOVO MÉTODO PARA BUSCA DINÂMICA ****
+    public List<PropertyResponseDto> searchProperties(PropertyType type, Double maxRent, Integer minRooms, Boolean hasGarage) {
+        // Começamos com a especificação base: apenas imóveis ativos.
+        Specification<Property> spec = Specification.where(PropertySpecification.isActive());
+
+        // Adicionamos os filtros à especificação apenas se eles foram fornecidos.
+        if (type != null) {
+            spec = spec.and(PropertySpecification.hasType(type));
+        }
+        if (maxRent != null) {
+            spec = spec.and(PropertySpecification.maxRent(maxRent));
+        }
+        if (minRooms != null) {
+            spec = spec.and(PropertySpecification.minRooms(minRooms));
+        }
+        if (hasGarage != null && hasGarage) {
+            spec = spec.and(PropertySpecification.hasGarage());
+        }
+
+        // Executamos a consulta com todos os filtros combinados.
+        return propertyRepository.findAll(spec)
                 .stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
+
 
     public PropertyResponseDto findPropertyById(UUID id) {
         Property property = propertyRepository.findById(id)
@@ -48,30 +72,22 @@ public class PropertyService {
         return convertToDto(property);
     }
 
-    // --- Métodos de Escrita (Protegidos) ---
-
-    // 2. MÉTODO ATUALIZADO COM A LÓGICA DE NEGÓCIO
+    // --- O restante da classe (create, update, delete, etc.) continua igual ---
     public PropertyResponseDto createProperty(PropertyCreateDto dto, User owner) {
-        // VERIFICA A ASSINATURA DO USUÁRIO
         Subscription subscription = subscriptionRepository.findByUser_Id(owner.getId())
                 .orElseThrow(() -> new IllegalStateException("Usuário não possui uma assinatura ativa para cadastrar imóveis."));
 
-        // VALIDA STATUS E DATA DA ASSINATURA
         if (!"ACTIVE".equals(subscription.getStatus()) || (subscription.getEndDate() != null && subscription.getEndDate().isBefore(LocalDate.now()))) {
             throw new IllegalStateException("A sua assinatura não está ativa. Por favor, regularize para cadastrar novos imóveis.");
         }
 
-        // CONTA OS IMÓVEIS ATIVOS ATUAIS DO USUÁRIO
         long currentPropertyCount = propertyRepository.countByOwnerAndStatus(owner, PropertyStatus.ACTIVE);
-
-        // VERIFICA O LIMITE DO PLANO
         int maxPropertiesAllowed = subscription.getPlan().getMaxProperties();
 
         if (currentPropertyCount >= maxPropertiesAllowed) {
             throw new IllegalStateException("Você atingiu o limite de " + maxPropertiesAllowed + " imóvel(is) do seu plano '" + subscription.getPlan().getName() + "'.");
         }
 
-        // SE TUDO ESTIVER OK, PROSSEGUE COM A CRIAÇÃO DO IMÓVEL
         Property newProperty = new Property();
         newProperty.setOwner(owner);
         newProperty.setTitle(dto.getTitle());
@@ -88,7 +104,6 @@ public class PropertyService {
 
         Property savedProperty = propertyRepository.save(newProperty);
 
-        // Retorna o DTO de resposta para manter o padrão do seu controller
         return convertToDto(savedProperty);
     }
 
@@ -96,12 +111,10 @@ public class PropertyService {
         Property property = propertyRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Imóvel não encontrado com o ID: " + id));
 
-        // Verificação de segurança crucial: o usuário atual é o dono do imóvel?
         if (!property.getOwner().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("Usuário não tem permissão para alterar este imóvel.");
         }
 
-        // Atualiza os campos do imóvel com os dados do DTO
         property.setTitle(dto.title());
         property.setDescription(dto.description());
         property.setType(dto.type());
@@ -123,7 +136,6 @@ public class PropertyService {
         Property property = propertyRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Imóvel não encontrado com o ID: " + id));
 
-        // Verificação de segurança crucial
         if (!property.getOwner().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("Usuário não tem permissão para deletar este imóvel.");
         }
@@ -131,12 +143,9 @@ public class PropertyService {
         propertyRepository.delete(property);
     }
 
-    // --- Método Auxiliar ---
-
     private PropertyResponseDto convertToDto(Property property) {
-        // Validação para evitar NullPointerException se o owner for nulo
         if (property.getOwner() == null) {
-            return null; // ou lançar uma exceção
+            return null;
         }
 
         OwnerSummaryDto ownerDto = new OwnerSummaryDto(
@@ -163,4 +172,3 @@ public class PropertyService {
         );
     }
 }
-
