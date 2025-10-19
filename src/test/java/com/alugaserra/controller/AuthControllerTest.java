@@ -58,7 +58,7 @@ class AuthControllerTest {
         // Primeiro, regista o utilizador (este teste agora vai passar)
         register_ShouldReturnCreated_WhenUserIsNew();
 
-        // Depois, tenta registar novamente com o mesmo email
+        // Depois, tenta registar novamente com o mesmo e-mail
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(locadorDto)))

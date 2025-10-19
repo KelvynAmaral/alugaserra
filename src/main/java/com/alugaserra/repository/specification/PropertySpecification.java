@@ -44,7 +44,7 @@ public class PropertySpecification {
 
     /**
      * Retorna uma especificação que filtra apenas as propriedades com status ACTIVE.
-     * Este é o nosso filtro base.
+     * nosso filtro base.
      */
     public static Specification<Property> isActive() {
         return (root, query, criteriaBuilder) ->

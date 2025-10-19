@@ -1,6 +1,6 @@
 package com.alugaserra.config;
 
-import com.alugaserra.enums.PropertyStatus;
+
 import com.alugaserra.enums.PropertyType;
 import com.alugaserra.enums.UserRole;
 import com.alugaserra.model.Plan;
@@ -31,7 +31,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     @Transactional // Garante que todas as operações sejam executadas numa única transação
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         createDefaultPlans();
         createDefaultProperties();
     }

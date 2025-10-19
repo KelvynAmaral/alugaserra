@@ -20,7 +20,7 @@ public record RegisterRequestDto(
         String password,
 
         @NotBlank(message = "O CPF não pode estar em branco")
-        @CPF(message = "CPF inválido") // <-- 2. USAR A ANOTAÇÃO NATIVA
+        @CPF(message = "CPF inválido")
         String cpf,
 
         @NotBlank(message = "O telefone não pode estar em branco")

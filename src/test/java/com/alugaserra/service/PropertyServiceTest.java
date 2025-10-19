@@ -45,12 +45,14 @@ class PropertyServiceTest {
 
     // Variáveis de teste que serão usadas em múltiplos testes
     private User locador;
-    private Plan planBronze;
     private Subscription subscriptionAtiva;
     private PropertyCreateDto propertyCreateDto;
 
     @BeforeEach
     void setUp() {
+        Plan planBronze = new Plan();
+        planBronze.setName("Bronze");
+        planBronze.setMaxProperties(1);
         // --- Prepara os nossos dados de teste ---
         locador = new User();
         locador.setId(UUID.randomUUID());

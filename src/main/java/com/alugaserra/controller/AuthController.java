@@ -54,7 +54,6 @@ public class AuthController {
 
         String encryptedPassword = new BCryptPasswordEncoder().encode(data.password());
 
-        // --- CÓDIGO CORRIGIDO ---
         // Criamos o usuário com o construtor vazio e usamos os setters
         User newUser = new User();
         newUser.setName(data.name());
@@ -63,7 +62,6 @@ public class AuthController {
         newUser.setCpf(data.cpf());
         newUser.setPhone(data.phone());
         newUser.setRole(data.role());
-        // --- FIM DA CORREÇÃO ---
 
         this.userRepository.save(newUser);
 

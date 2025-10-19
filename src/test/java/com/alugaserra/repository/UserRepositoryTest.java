@@ -15,7 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 // @DataJpaTest configura um ambiente focado apenas na camada de persistência.
 @DataJpaTest
-// **** CORREÇÃO AQUI ****
 // Esta anotação diz ao Spring para NÃO substituir nosso banco de dados configurado.
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class UserRepositoryTest {

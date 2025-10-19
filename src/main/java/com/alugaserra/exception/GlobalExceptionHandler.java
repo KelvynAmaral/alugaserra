@@ -62,7 +62,7 @@ public class GlobalExceptionHandler {
 
     // Trata erros de permissão (ex: inquilino tentando alterar imóvel)
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiErrorDto> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorDto> handleAccessDeniedException(HttpServletRequest request) {
         ApiErrorDto errorDto = new ApiErrorDto(
                 LocalDateTime.now(),
                 HttpStatus.FORBIDDEN.value(),
@@ -74,7 +74,7 @@ public class GlobalExceptionHandler {
 
     // Um handler genérico para qualquer outra exceção não tratada
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiErrorDto> handleGenericException(Exception ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorDto> handleGenericException(HttpServletRequest request) {
         ApiErrorDto errorDto = new ApiErrorDto(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
