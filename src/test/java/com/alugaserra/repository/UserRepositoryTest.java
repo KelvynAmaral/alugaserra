@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.Optional;
 
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // @DataJpaTest configura um ambiente focado apenas na camada de persistência.
 @DataJpaTest
 @ActiveProfiles("test")
+@TestPropertySource(locations = "classpath:application-test.properties")
 class UserRepositoryTest {
 
     // TestEntityManager é um ajudante para manipular as nossas entidades nos testes.
