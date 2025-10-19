@@ -37,7 +37,7 @@ class AuthControllerTest {
                 "Teste Locador",
                 "locador.teste@email.com",
                 "senha123",
-                "11122233344",
+                "35526718620", //
                 "31988776655",
                 UserRole.LOCADOR
         );
@@ -55,10 +55,8 @@ class AuthControllerTest {
     @Test
     @DisplayName("Deve falhar ao registar um utilizador com email já existente e retornar o status 400")
     void register_ShouldReturnBadRequest_WhenEmailAlreadyExists() throws Exception {
-        // Primeiro, regista o utilizador
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(locadorDto)));
+        // Primeiro, regista o utilizador (este teste agora vai passar)
+        register_ShouldReturnCreated_WhenUserIsNew();
 
         // Depois, tenta registar novamente com o mesmo email
         mockMvc.perform(post("/api/auth/register")
@@ -86,7 +84,8 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginRequestJson))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isString()) // Verifica se a resposta contém um campo "token"
-                .andExpect(jsonPath("$.token").isNotEmpty()); // Verifica se o token não está vazio
+                .andExpect(jsonPath("$.token").isString())
+                .andExpect(jsonPath("$.token").isNotEmpty());
     }
 }
+
