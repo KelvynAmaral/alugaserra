@@ -106,8 +106,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- **** NOVA DEPENDÊNCIA ADICIONADA **** -->
-        <!-- Banco de Dados H2 em memória, apenas para o escopo de teste -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>

@@ -16,7 +16,7 @@ class TokenServiceTest {
     @BeforeEach
     void setUp() {
         tokenService = new TokenService();
-        // Como não estamos num ambiente Spring, injetamos os valores do application.properties
+        // Como não estamos num ambiente Spring, injetamos os valores do application-test.properties
         // manualmente usando uma ferramenta de teste chamada ReflectionTestUtils.
         ReflectionTestUtils.setField(tokenService, "secret", "MinhaChaveSecretaSuperLongaParaProtegerMeuTokenJWTDoAlugaSerra");
         ReflectionTestUtils.setField(tokenService, "expiration", 3600000L);
