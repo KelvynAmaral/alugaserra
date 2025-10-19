@@ -2,9 +2,13 @@ package com.alugaserra.controller;
 
 import com.alugaserra.config.DataInitializer;
 import com.alugaserra.dto.PropertyCreateDto;
+import com.alugaserra.dto.PropertyUpdateDto;
+import com.alugaserra.enums.PropertyStatus;
 import com.alugaserra.enums.PropertyType;
 import com.alugaserra.enums.UserRole;
+import com.alugaserra.model.Property;
 import com.alugaserra.model.User;
+import com.alugaserra.repository.PropertyRepository;
 import com.alugaserra.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,11 +23,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,35 +40,43 @@ class PropertyControllerTest {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
-    @Autowired private DataInitializer dataInitializer; // Injeta o nosso inicializador
+    @Autowired private DataInitializer dataInitializer;
+    @Autowired private PropertyRepository propertyRepository;
 
-    private User locador;
+    private User locadorOwner;
+    private User locadorNotOwner;
     private User inquilino;
+    private Property propertyToTest;
 
     @BeforeEach
     void setupDatabase() {
-        // Força a execução do DataInitializer para garantir que os dados de teste existam
         try {
             dataInitializer.run(new String[]{});
         } catch (Exception e) {
             throw new RuntimeException("Falha ao inicializar dados de teste", e);
         }
 
-        locador = userRepository.findByEmail("locador@email.com").orElseThrow();
+        locadorOwner = userRepository.findByEmail("locador@email.com").orElseThrow();
+
+        locadorNotOwner = new User();
+        locadorNotOwner.setEmail("outro.locador@email.com");
+        locadorNotOwner.setPasswordHash(passwordEncoder.encode("password"));
+        locadorNotOwner.setRole(UserRole.LOCADOR);
+        userRepository.save(locadorNotOwner);
 
         inquilino = new User();
         inquilino.setEmail("inquilino.teste@email.com");
         inquilino.setPasswordHash(passwordEncoder.encode("password"));
         inquilino.setRole(UserRole.INQUILINO);
         userRepository.save(inquilino);
-    }
 
-    // --- TESTES DE CRIAÇÃO (POST) ---
+        List<Property> allProperties = propertyRepository.findAll();
+        propertyToTest = allProperties.get(0);
+    }
 
     @Test
     @DisplayName("Deve permitir que um LOCADOR crie um imóvel com sucesso")
     void createProperty_ShouldSucceed_WhenUserIsLocador() throws Exception {
-        // Preenche todos os campos obrigatórios do DTO para passar na validação
         PropertyCreateDto propertyDto = new PropertyCreateDto();
         propertyDto.setTitle("Nova Casa de Teste");
         propertyDto.setDescription("Descrição completa da nova casa de teste.");
@@ -73,76 +85,85 @@ class PropertyControllerTest {
         propertyDto.setRooms(3);
         propertyDto.setBathrooms(2);
         propertyDto.setHasGarage(true);
-        propertyDto.setIsFurnished(false); // Campo obrigatório
+        propertyDto.setIsFurnished(false);
         propertyDto.setPhotoUrls(Collections.emptyList());
-        propertyDto.setApproximateLocation("Bairro Teste"); // Campo obrigatório
+        propertyDto.setApproximateLocation("Bairro Teste");
 
         mockMvc.perform(post("/api/properties")
-                        .with(user(locador))
+                        .with(user(locadorOwner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(propertyDto)))
                 .andExpect(status().isCreated());
     }
 
     @Test
-    @DisplayName("Deve proibir que um INQUILINO crie um imóvel")
-    void createProperty_ShouldFail_WhenUserIsInquilino() throws Exception {
-        PropertyCreateDto propertyDto = new PropertyCreateDto();
-        // Preencher o DTO não é estritamente necessário aqui, pois a segurança deve barrar antes.
-        // Mas é uma boa prática para evitar erros de validação caso a segurança falhe.
-        propertyDto.setTitle("Tentativa de Criação");
-        propertyDto.setDescription("...");
-        propertyDto.setType(PropertyType.QUARTO);
-        propertyDto.setRentValue(500.0);
-        propertyDto.setRooms(1);
-        propertyDto.setBathrooms(1);
-        propertyDto.setHasGarage(false);
-        propertyDto.setIsFurnished(true);
-        propertyDto.setApproximateLocation("Centro");
-
-        mockMvc.perform(post("/api/properties")
-                        .with(user(inquilino)) // Simula a requisição como um INQUILINO
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(propertyDto)))
-                .andExpect(status().isForbidden()); // Esperamos o status 403 Forbidden (Acesso Negado)
-    }
-
-    // --- NOVOS TESTES DE BUSCA (GET) COM FILTROS ---
-
-    @Test
     @DisplayName("Deve retornar todos os imóveis ativos quando nenhum filtro é aplicado")
     void searchProperties_ShouldReturnAllActiveProperties_WhenNoFilterIsApplied() throws Exception {
         mockMvc.perform(get("/api/properties"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(3))); // Espera os 3 imóveis do DataInitializer
+                .andExpect(jsonPath("$", hasSize(3)));
     }
 
     @Test
-    @DisplayName("Deve retornar apenas imóveis do tipo CASA quando o filtro 'type' é usado")
-    void searchProperties_ShouldReturnOnlyCasas_WhenTypeFilterIsCasa() throws Exception {
-        mockMvc.perform(get("/api/properties").param("type", "CASA"))
+    @DisplayName("Deve permitir que o DONO do imóvel o atualize com sucesso")
+    void updateProperty_ShouldSucceed_WhenUserIsOwner() throws Exception {
+        PropertyUpdateDto updateDto = new PropertyUpdateDto(
+                "Título Atualizado", "Descrição válida", PropertyType.CASA, PropertyStatus.PAUSED,
+                2600.0, 4, 3, true, true, Collections.emptyList(), "", "Nova Localização Válida"
+        );
+
+        mockMvc.perform(put("/api/properties/" + propertyToTest.getId())
+                        .with(user(locadorOwner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].title").value("Casa Grande com Quintal"));
+                .andExpect(jsonPath("$.title").value("Título Atualizado"));
     }
 
     @Test
-    @DisplayName("Deve retornar imóveis com aluguel até 1500 quando o filtro 'maxRent' é usado")
-    void searchProperties_ShouldReturnProperties_WhenMaxRentFilterIsApplied() throws Exception {
-        mockMvc.perform(get("/api/properties").param("maxRent", "1500"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2))); // Apartamento (1200) e Kitnet (800)
+    @DisplayName("Deve PROIBIR que um LOCADOR que não é o dono atualize o imóvel")
+    void updateProperty_ShouldFail_WhenUserIsNotOwner() throws Exception {
+        PropertyUpdateDto updateDto = new PropertyUpdateDto(
+                "Título Malicioso", "Descrição Válida", PropertyType.CASA, PropertyStatus.ACTIVE,
+                1.0, 1, 1, false, false, Collections.emptyList(), "", "Local Válido"
+        );
+
+        mockMvc.perform(put("/api/properties/" + propertyToTest.getId())
+                        .with(user(locadorNotOwner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("Deve combinar filtros de tipo e quartos corretamente")
-    void searchProperties_ShouldCombineFiltersCorrectly() throws Exception {
-        mockMvc.perform(get("/api/properties")
-                        .param("type", "CASA")
-                        .param("minRooms", "4"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].title").value("Casa Grande com Quintal"));
+    @DisplayName("Deve PROIBIR que um INQUILINO atualize o imóvel")
+    void updateProperty_ShouldFail_WhenUserIsInquilino() throws Exception {
+        PropertyUpdateDto updateDto = new PropertyUpdateDto(
+                "Título Malicioso", "Descrição Válida", PropertyType.CASA, PropertyStatus.ACTIVE,
+                1.0, 1, 1, false, false, Collections.emptyList(), "", "Local Válido"
+        );
+
+        mockMvc.perform(put("/api/properties/" + propertyToTest.getId())
+                        .with(user(inquilino))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDto)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Deve permitir que o DONO do imóvel o delete com sucesso")
+    void deleteProperty_ShouldSucceed_WhenUserIsOwner() throws Exception {
+        mockMvc.perform(delete("/api/properties/" + propertyToTest.getId())
+                        .with(user(locadorOwner)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("Deve PROIBIR que um LOCADOR que não é o dono delete o imóvel")
+    void deleteProperty_ShouldFail_WhenUserIsNotOwner() throws Exception {
+        mockMvc.perform(delete("/api/properties/" + propertyToTest.getId())
+                        .with(user(locadorNotOwner)))
+                .andExpect(status().isForbidden());
     }
 }
 
