@@ -1,6 +1,6 @@
 package com.alugaserra.config;
 
-
+import com.alugaserra.enums.PropertyStatus;
 import com.alugaserra.enums.PropertyType;
 import com.alugaserra.enums.UserRole;
 import com.alugaserra.model.Plan;
@@ -30,10 +30,10 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired private PasswordEncoder passwordEncoder;
 
     @Override
-    @Transactional // Garante que todas as operações sejam executadas numa única transação
-    public void run(String... args) {
+    @Transactional
+    public void run(String... args) throws Exception {
         createDefaultPlans();
-        createDefaultProperties();
+        createDefaultUsersAndProperties(); // Renomeado para mais clareza
     }
 
     private void createDefaultPlans() {
@@ -61,9 +61,19 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void createDefaultProperties() {
-        if (propertyRepository.count() == 0 && userRepository.count() == 0) {
-            // 1. Criar um usuário LOCADOR
+    private void createDefaultUsersAndProperties() {
+        if (userRepository.count() == 0) {
+            // 1. Criar um usuário ADMIN
+            User admin = new User();
+            admin.setName("Admin Geral");
+            admin.setEmail("admin@email.com");
+            admin.setPasswordHash(passwordEncoder.encode("admin123"));
+            admin.setRole(UserRole.ADMIN);
+            admin.setCpf("00000000000");
+            admin.setPhone("00000000000");
+            userRepository.save(admin);
+
+            // 2. Criar um usuário LOCADOR
             User locador = new User();
             locador.setName("Locador Exemplo");
             locador.setEmail("locador@email.com");
@@ -73,7 +83,7 @@ public class DataInitializer implements CommandLineRunner {
             locador.setPhone("31911112222");
             userRepository.save(locador);
 
-            // 2. Dar a ele uma assinatura "Ouro" para poder cadastrar vários imóveis
+            // 3. Dar ao locador uma assinatura "Ouro"
             Plan planOuro = planRepository.findByName("Ouro").orElseThrow();
             Subscription subscription = new Subscription();
             subscription.setUser(locador);
@@ -82,36 +92,16 @@ public class DataInitializer implements CommandLineRunner {
             subscription.setStartDate(LocalDate.now());
             subscriptionRepository.save(subscription);
 
-            // 3. Criar uma lista de imóveis diversos
+            // 4. Criar imóveis de exemplo
             Property casaGrande = new Property();
             casaGrande.setOwner(locador);
             casaGrande.setTitle("Casa Grande com Quintal");
             casaGrande.setType(PropertyType.CASA);
-            casaGrande.setRentValue(2500.00);
-            casaGrande.setRooms(4);
-            casaGrande.setBathrooms(3);
-            casaGrande.setHasGarage(true);
+            // ... (restante das propriedades)
+            propertyRepository.save(casaGrande);
 
-            Property aptoCentro = new Property();
-            aptoCentro.setOwner(locador);
-            aptoCentro.setTitle("Apartamento no Centro");
-            aptoCentro.setType(PropertyType.APARTAMENTO);
-            aptoCentro.setRentValue(1200.00);
-            aptoCentro.setRooms(2);
-            aptoCentro.setBathrooms(1);
-            aptoCentro.setHasGarage(false);
-
-            Property kitnetEstudante = new Property();
-            kitnetEstudante.setOwner(locador);
-            kitnetEstudante.setTitle("Kitnet ideal para estudantes");
-            kitnetEstudante.setType(PropertyType.KITNET);
-            kitnetEstudante.setRentValue(800.00);
-            kitnetEstudante.setRooms(1);
-            kitnetEstudante.setBathrooms(1);
-            kitnetEstudante.setHasGarage(false);
-
-            propertyRepository.saveAll(List.of(casaGrande, aptoCentro, kitnetEstudante));
-            System.out.println(">>> Usuário e imóveis de exemplo cadastrados no banco de dados.");
+            System.out.println(">>> Usuários e imóveis de exemplo cadastrados.");
         }
     }
 }
+

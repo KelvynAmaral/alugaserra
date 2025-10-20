@@ -28,20 +28,16 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        // --- REGRAS DO SWAGGER (PÚBLICAS) ---
-                        .requestMatchers("/swagger-ui.html").permitAll()
-                        .requestMatchers("/swagger-ui/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        // Rotas Públicas
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/properties", "/api/properties/**").permitAll()
 
-                        // Rotas de Autenticação (Públicas)
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        // --- NOVA REGRA ADICIONADA ---
+                        // Apenas utilizadores com o papel ADMIN podem aceder a /api/admin/**
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // Rotas de Imóveis (Visualização Pública)
-                        .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/properties/**").permitAll()
-
-                        // Rotas de Imóveis (Ações de Locador)
+                        // Rotas de Locador
                         .requestMatchers(HttpMethod.POST, "/api/properties").hasRole("LOCADOR")
                         .requestMatchers(HttpMethod.PUT, "/api/properties/**").hasRole("LOCADOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/properties/**").hasRole("LOCADOR")
@@ -63,3 +59,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
+
