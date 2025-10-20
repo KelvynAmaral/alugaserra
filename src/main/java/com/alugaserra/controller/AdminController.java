@@ -1,5 +1,6 @@
 package com.alugaserra.controller;
 
+import com.alugaserra.dto.PropertyResponseDto;
 import com.alugaserra.dto.UserAdminViewDto;
 import com.alugaserra.enums.UserRole;
 import com.alugaserra.repository.UserRepository;
@@ -28,27 +29,46 @@ public class AdminController {
 
     /**
      * Endpoint para listar todos os usuários cadastrados na plataforma.
-     * @return Uma lista de usuários com dados selecionados para a visão do admin.
      */
     @GetMapping("/users")
     public ResponseEntity<List<UserAdminViewDto>> getAllUsers() {
         List<UserAdminViewDto> users = userRepository.findAll()
                 .stream()
-                .map(UserAdminViewDto::new) // Converte cada User para o DTO
+                .map(UserAdminViewDto::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users);
     }
 
     /**
      * Endpoint para atualizar o papel de um usuário.
-     * @param userId O ID do usuário a ser modificado.
-     * @param newRole O novo papel (enviado como um parâmetro de requisição).
-     * @return Os dados atualizados do usuário.
      */
     @PutMapping("/users/{userId}/role")
     public ResponseEntity<UserAdminViewDto> updateUserRole(@PathVariable UUID userId, @RequestParam UserRole newRole) {
         UserAdminViewDto updatedUser = adminService.updateUserRole(userId, newRole);
         return ResponseEntity.ok(updatedUser);
+    }
+
+    // --- NOVOS ENDPOINTS ---
+
+    /**
+     * Endpoint para o admin listar TODOS os imóveis da plataforma.
+     * @return Uma lista de todos os imóveis, independentemente do status.
+     */
+    @GetMapping("/properties")
+    public ResponseEntity<List<PropertyResponseDto>> getAllPropertiesForAdmin() {
+        List<PropertyResponseDto> properties = adminService.findAllProperties();
+        return ResponseEntity.ok(properties);
+    }
+
+    /**
+     * Endpoint para o admin deletar qualquer imóvel (ação de moderação).
+     * @param propertyId O ID do imóvel a ser deletado.
+     * @return Resposta 204 No Content em caso de sucesso.
+     */
+    @DeleteMapping("/properties/{propertyId}")
+    public ResponseEntity<Void> deletePropertyByAdmin(@PathVariable UUID propertyId) {
+        adminService.deleteProperty(propertyId);
+        return ResponseEntity.noContent().build();
     }
 }
 

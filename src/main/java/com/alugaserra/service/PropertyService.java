@@ -5,16 +5,16 @@ import com.alugaserra.dto.PropertyCreateDto;
 import com.alugaserra.dto.PropertyResponseDto;
 import com.alugaserra.dto.PropertyUpdateDto;
 import com.alugaserra.enums.PropertyStatus;
-import com.alugaserra.enums.PropertyType; // <-- Importar
+import com.alugaserra.enums.PropertyType;
 import com.alugaserra.model.Property;
 import com.alugaserra.model.Subscription;
 import com.alugaserra.model.User;
 import com.alugaserra.repository.PropertyRepository;
 import com.alugaserra.repository.SubscriptionRepository;
-import com.alugaserra.repository.specification.PropertySpecification; // <-- Importar
+import com.alugaserra.repository.specification.PropertySpecification;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.domain.Specification; // <-- Importar
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Contém a lógica de negócio para operações relacionadas a imóveis.
+ */
 @Service
 public class PropertyService {
 
@@ -32,19 +35,15 @@ public class PropertyService {
     @Autowired
     private SubscriptionRepository subscriptionRepository;
 
-    // --- MÉTODOS DE BUSCA ATUALIZADOS ---
+    // --- Métodos de Busca ---
 
-    // Este método agora é um atalho para a busca com filtros, sem nenhum filtro aplicado.
     public List<PropertyResponseDto> findAllActiveProperties() {
         return searchProperties(null, null, null, null);
     }
 
-    // **** NOVO MÉTODO PARA BUSCA DINÂMICA ****
     public List<PropertyResponseDto> searchProperties(PropertyType type, Double maxRent, Integer minRooms, Boolean hasGarage) {
-        // Começamos com a especificação base: apenas imóveis ativos.
         Specification<Property> spec = Specification.where(PropertySpecification.isActive());
 
-        // Adicionamos os filtros à especificação apenas se eles foram fornecidos.
         if (type != null) {
             spec = spec.and(PropertySpecification.hasType(type));
         }
@@ -58,13 +57,11 @@ public class PropertyService {
             spec = spec.and(PropertySpecification.hasGarage());
         }
 
-        // Executamos a consulta com todos os filtros combinados.
         return propertyRepository.findAll(spec)
                 .stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
-
 
     public PropertyResponseDto findPropertyById(UUID id) {
         Property property = propertyRepository.findById(id)
@@ -72,7 +69,8 @@ public class PropertyService {
         return convertToDto(property);
     }
 
-    // --- O restante da classe (create, update, delete, etc.) continua igual ---
+    // --- Métodos de Escrita ---
+
     public PropertyResponseDto createProperty(PropertyCreateDto dto, User owner) {
         Subscription subscription = subscriptionRepository.findByUser_Id(owner.getId())
                 .orElseThrow(() -> new IllegalStateException("Usuário não possui uma assinatura ativa para cadastrar imóveis."));
@@ -143,8 +141,12 @@ public class PropertyService {
         propertyRepository.delete(property);
     }
 
-    private PropertyResponseDto convertToDto(Property property) {
+
+    public PropertyResponseDto convertToDto(Property property) {
         if (property.getOwner() == null) {
+            // Em cenários de teste ou dados inconsistentes, o owner pode ser nulo.
+            // Retornar null ou um DTO com dados de owner vazios pode ser uma opção.
+            // Para robustez, vamos retornar null para indicar o problema.
             return null;
         }
 
@@ -172,3 +174,4 @@ public class PropertyService {
         );
     }
 }
+
