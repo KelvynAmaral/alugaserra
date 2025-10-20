@@ -54,7 +54,7 @@ public class AuthController {
 
         String encryptedPassword = new BCryptPasswordEncoder().encode(data.password());
 
-        // Criamos o usuário com o construtor vazio e usamos os setters
+        // Usuário com o construtor vazio e usamos os setters
         User newUser = new User();
         newUser.setName(data.name());
         newUser.setEmail(data.email());
